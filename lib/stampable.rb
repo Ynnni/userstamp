@@ -101,8 +101,9 @@ module Ddb #:nodoc:
               belongs_to :updater, :class_name => klass, :foreign_key => updater_attribute
             end
 
-            before_save :set_updater_attribute
-            before_save :set_creator_attribute, :on => :create
+            before_create :set_creator_attribute
+            before_update :set_updater_attribute
+            after_touch   :update_updater_attribute
 
             if defaults[:deleter]
               if defaults[:with_deleted]
@@ -110,9 +111,7 @@ module Ddb #:nodoc:
               else
                 belongs_to :deleter, :class_name => klass, :foreign_key => deleter_attribute
               end
-
               before_destroy :set_deleter_attribute
-
             end
           end
         end
@@ -158,7 +157,13 @@ module Ddb #:nodoc:
             # or contains a serialized attribute (in which case the attribute value is always updated)
             return unless self.new_record? || self.changed? || self.class.serialized_attributes.present?
             if respond_to?(self.updater_attribute.to_sym) && has_stamper?
-              self.send("#{self.updater_attribute}=".to_sym, self.class.stamper_class.stamper)
+              self.assign_attributes(self.updater_attribute => self.class.stamper_class.stamper)
+            end
+          end
+
+          def update_updater_attribute
+            if respond_to?(self.updater_attribute.to_sym) && has_stamper?
+              self.update_column(self.updater_attribute, self.class.stamper_class.stamper)
             end
           end
 
